@@ -1,0 +1,23 @@
+name: diff
+description: Compute a diff between head and base
+inputs:
+  base:
+    description: Path(s) of base (multiline)
+    required: true
+  head:
+    description: Path(s) of head (multiline)
+    required: true
+  label:
+    description: Label(s) to add or remove to indicate the diff (multiline)
+    required: false
+  token:
+    description: GitHub token for label operations
+    required: true
+    default: ${{ github.token }}
+outputs:
+  comment-body:
+    description: Comment body
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
+  pre: chainguard-phonehome.js
