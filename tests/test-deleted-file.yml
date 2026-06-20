@@ -1,0 +1,44 @@
+name: Test deleted file (base has file missing from head)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories where base has an extra file
+        run: |
+          mkdir -p /tmp/test-base /tmp/test-head
+          echo "common content" > /tmp/test-base/common.txt
+          echo "common content" > /tmp/test-head/common.txt
+          echo "this file will be deleted" > /tmp/test-base/deleted.txt
+
+      - id: diff
+        uses: .
+        with:
+          base: /tmp/test-base
+          head: /tmp/test-head
+          token: dummy-token
+
+      - name: Assert comment-body is non-empty when file is deleted
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected non-empty comment-body when a file is deleted"
+            exit 1
+          fi
+          echo "PASS: comment-body is non-empty as expected"
+
+      - name: Assert comment-body references the deleted file
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if ! echo "$ACTUAL" | grep -q "deleted.txt"; then
+            echo "FAIL: expected comment-body to reference deleted.txt"
+            exit 1
+          fi
+          echo "PASS: comment-body references the deleted file"

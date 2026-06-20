@@ -1,0 +1,32 @@
+name: Test no diff (identical directories)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create identical base and head directories
+        run: |
+          mkdir -p /tmp/test-base /tmp/test-head
+          echo "hello world" > /tmp/test-base/file.txt
+          echo "hello world" > /tmp/test-head/file.txt
+
+      - id: diff
+        uses: .
+        with:
+          base: /tmp/test-base
+          head: /tmp/test-head
+          token: dummy-token
+
+      - name: Assert comment-body is empty when no diff
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if [ -n "$ACTUAL" ]; then
+            echo "FAIL: expected empty comment-body when no diff, got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: comment-body is empty as expected"

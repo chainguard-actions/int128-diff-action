@@ -1,14 +1,117 @@
-# int128/diff-action
+# diff-action [![ts](https://github.com/int128/diff-action/actions/workflows/ts.yaml/badge.svg)](https://github.com/int128/diff-action/actions/workflows/ts.yaml)
 
-Compute a diff between head and base
+This is an action to format the diff between head and base.
 
-Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/int128/diff-action](https://github.com/int128/diff-action).
+## Migration to V2
 
-## Versions
+This action no longer posts a comment by itself.
+You can post a comment using [int128/comment-action](https://github.com/int128/comment-action).
+For example,
 
-| Version | Tag | Upstream commit |
-|---------|-----|-----------------|
-| v2.26.0 | [`v2.26.0`](https://github.com/chainguard-actions/int128-diff-action/tree/v2.26.0) | [`d0e5d6c`](https://github.com/int128/diff-action/commit/d0e5d6ca168ff2ce0b979296c34c58c329b1488f) |
+```yaml
+steps:
+  - id: diff
+    uses: int128/diff-action@v2
+    with:
+      base: old-directory
+      head: new-directory
+  - uses: int128/comment-action@v1
+    with:
+      update-if-exists: replace
+      post: |
+        ## ${{ github.workflow }} / ${{ github.job }}
+        ${{ steps.diff.outputs.comment-body || 'No diff' }}
+```
+
+## Getting Started
+
+To get the diff between `old-directory` and `new-directory`,
+
+```yaml
+- id: diff
+  uses: int128/diff-action@v1
+  with:
+    base: old-directory
+    head: new-directory
+```
+
+If no difference, it returns an empty string.
+
+### Show diff of generated manifests
+
+If you use `kustomize build` in your CI/CD pipeline, it would be useful if you can see the diff on a pull request.
+
+To build manifests with [int128/kustomize-action](https://github.com/int128/kustomize-action) and show diff of it:
+
+```yaml
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # required to post a comment to a pull request
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+      - id: kustomize-head
+        uses: int128/kustomize-action@v1
+        with:
+          kustomization: config/default/kustomization.yaml
+          write-individual-files: true
+      - id: kustomize-base
+        uses: int128/kustomize-action@v1
+        with:
+          base-directory: main
+          kustomization: config/default/kustomization.yaml
+          write-individual-files: true
+      - id: diff
+        uses: int128/diff-action@v2
+        with:
+          base: ${{ steps.kustomize-base.outputs.directory }}
+          head: ${{ steps.kustomize-head.outputs.directory }}
+      - uses: int128/comment-action@v1
+        with:
+          update-if-exists: replace
+          post: |
+            ## kustomize diff
+            ${{ steps.diff.outputs.comment-body }}
+```
+
+Here is an example.
+
+<img width="920" alt="image" src="https://user-images.githubusercontent.com/321266/169690472-a74d764d-3567-4d5b-adc4-e8efc9dd4d6c.png">
+
+### Label to indicate the change
+
+To add label(s) if there is difference or remove it if not:
+
+```yaml
+- uses: int128/diff-action@v1
+  with:
+    base: ${{ steps.kustomize-base.outputs.directory }}
+    head: ${{ steps.kustomize-head.outputs.directory }}
+    label: manifest-changed
+```
+
+## Specification
+
+### Inputs
+
+| Name    | Default        | Description                                                |
+| ------- | -------------- | ---------------------------------------------------------- |
+| `base`  | (required)     | Path(s) of base (multiline)                                |
+| `head`  | (required)     | Path(s) of head (multiline)                                |
+| `label` | -              | Label(s) to add or remove to indicate the diff (multiline) |
+| `token` | `github.token` | GitHub token for label operations                          |
+
+### Outputs
+
+| Name           | Description  |
+| -------------- | ------------ |
+| `comment-body` | Comment body |
 
 ## Privacy
 

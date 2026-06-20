@@ -1,0 +1,44 @@
+name: Test with label input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories with different content
+        run: |
+          mkdir -p /tmp/test-label-base /tmp/test-label-head
+          echo "old content" > /tmp/test-label-base/file.txt
+          echo "new content" > /tmp/test-label-head/file.txt
+
+      - id: diff
+        uses: .
+        with:
+          base: /tmp/test-label-base
+          head: /tmp/test-label-head
+          label: needs-review
+          token: dummy-token
+
+      - name: Assert comment-body is non-empty when diff exists with label
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected non-empty comment-body when diff exists"
+            exit 1
+          fi
+          echo "PASS: comment-body is non-empty as expected"
+
+      - name: Assert comment-body contains diff content
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if ! echo "$ACTUAL" | grep -q "file.txt"; then
+            echo "FAIL: expected comment-body to reference file.txt"
+            exit 1
+          fi
+          echo "PASS: comment-body contains file reference"
