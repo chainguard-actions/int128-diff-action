@@ -1,0 +1,44 @@
+name: Test added file (file in head but not in base)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories where head has an extra file
+        run: |
+          mkdir -p /tmp/base-add /tmp/head-add
+          echo "common file" > /tmp/base-add/common.txt
+          echo "common file" > /tmp/head-add/common.txt
+          echo "brand new file" > /tmp/head-add/new.txt
+
+      - id: diff
+        uses: .
+        with:
+          base: /tmp/base-add
+          head: /tmp/head-add
+          token: ${{ github.token }}
+
+      - name: Assert comment-body is non-empty when file is added
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected non-empty comment-body for added file"
+            exit 1
+          fi
+          echo "PASS: comment-body is non-empty as expected"
+
+      - name: Assert comment-body references the new file
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if ! echo "$ACTUAL" | grep -q "new.txt"; then
+            echo "FAIL: expected comment-body to reference new.txt"
+            exit 1
+          fi
+          echo "PASS: comment-body references the added file"
