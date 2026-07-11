@@ -1,0 +1,45 @@
+name: Test diff with deleted file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories where base has an extra file
+        run: |
+          mkdir -p /tmp/diff-deleted/base /tmp/diff-deleted/head
+          echo "existing file" > /tmp/diff-deleted/base/existing.txt
+          echo "existing file" > /tmp/diff-deleted/head/existing.txt
+          echo "file to be deleted" > /tmp/diff-deleted/base/deleted.txt
+
+      - id: action
+        uses: .
+        with:
+          base: /tmp/diff-deleted/base
+          head: /tmp/diff-deleted/head
+          token: ${{ github.token }}
+
+      - name: Assert comment-body contains deleted file information
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected non-empty comment-body when a file is deleted"
+            exit 1
+          fi
+          # Should mention "1 file changed"
+          if ! echo "$ACTUAL" | grep -q "1 file changed"; then
+            echo "FAIL: expected '1 file changed' in comment-body"
+            echo "Got: $ACTUAL"
+            exit 1
+          fi
+          # Should mention deleted status
+          if ! echo "$ACTUAL" | grep -qiE "deleted|'\`D\`'"; then
+            echo "FAIL: expected deleted indicator in comment-body"
+            echo "Got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: comment-body contains expected deleted file information"

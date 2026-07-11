@@ -1,0 +1,44 @@
+name: Test diff with modified file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories with a modified file
+        run: |
+          mkdir -p /tmp/diff-modified/base /tmp/diff-modified/head
+          echo "original content" > /tmp/diff-modified/base/file.txt
+          echo "modified content" > /tmp/diff-modified/head/file.txt
+
+      - id: action
+        uses: .
+        with:
+          base: /tmp/diff-modified/base
+          head: /tmp/diff-modified/head
+          token: ${{ github.token }}
+
+      - name: Assert comment-body contains diff information
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected non-empty comment-body when files differ"
+            exit 1
+          fi
+          # Should mention "1 file changed"
+          if ! echo "$ACTUAL" | grep -q "1 file changed"; then
+            echo "FAIL: expected '1 file changed' in comment-body"
+            echo "Got: $ACTUAL"
+            exit 1
+          fi
+          # Should mention modified status
+          if ! echo "$ACTUAL" | grep -qiE "modified|`M`"; then
+            echo "FAIL: expected modified indicator in comment-body"
+            echo "Got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: comment-body contains expected diff information"

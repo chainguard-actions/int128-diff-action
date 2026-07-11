@@ -1,0 +1,45 @@
+name: Test diff with added file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories where head has an extra file
+        run: |
+          mkdir -p /tmp/diff-added/base /tmp/diff-added/head
+          echo "existing file" > /tmp/diff-added/base/existing.txt
+          echo "existing file" > /tmp/diff-added/head/existing.txt
+          echo "new file content" > /tmp/diff-added/head/newfile.txt
+
+      - id: action
+        uses: .
+        with:
+          base: /tmp/diff-added/base
+          head: /tmp/diff-added/head
+          token: ${{ github.token }}
+
+      - name: Assert comment-body contains added file information
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected non-empty comment-body when a file is added"
+            exit 1
+          fi
+          # Should mention "1 file changed"
+          if ! echo "$ACTUAL" | grep -q "1 file changed"; then
+            echo "FAIL: expected '1 file changed' in comment-body"
+            echo "Got: $ACTUAL"
+            exit 1
+          fi
+          # Should mention added status
+          if ! echo "$ACTUAL" | grep -qiE "added|'\`A\`'"; then
+            echo "FAIL: expected added indicator in comment-body"
+            echo "Got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: comment-body contains expected added file information"
