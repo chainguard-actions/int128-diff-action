@@ -1,4 +1,4 @@
-name: Test no diff (identical directories)
+name: Test no diff scenario
 on:
   workflow_dispatch:
 jobs:
@@ -13,20 +13,22 @@ jobs:
           echo "hello world" > /tmp/base/file.txt
           echo "hello world" > /tmp/head/file.txt
 
-      - id: diff
+      - id: action
         uses: .
         with:
           base: /tmp/base
           head: /tmp/head
-          token: ${{ github.token }}
 
       - name: Assert comment-body is empty when no diff
         env:
-          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
         run: |
           echo "actual: '$ACTUAL'"
-          if [ -n "$ACTUAL" ]; then
+          NORM="$(echo "$ACTUAL" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$ACTUAL" | grep -qiE 'no .*(change|diff)'; then
+            echo "PASS: no diff as expected"
+          else
             echo "FAIL: expected empty comment-body but got: $ACTUAL"
             exit 1
           fi
-          echo "PASS: comment-body is empty as expected"

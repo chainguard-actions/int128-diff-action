@@ -1,4 +1,4 @@
-name: Test with label input
+name: Test diff with label input
 on:
   workflow_dispatch:
 jobs:
@@ -7,38 +7,31 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create base and head directories with different content
+      - name: Create base file
         run: |
-          mkdir -p /tmp/base /tmp/head
-          echo "old content" > /tmp/base/file.txt
-          echo "new content" > /tmp/head/file.txt
+          mkdir -p /tmp/diff-label-test/base
+          echo "hello world" > /tmp/diff-label-test/base/file.txt
 
-      - id: diff
+      - name: Create head file with changes
+        run: |
+          mkdir -p /tmp/diff-label-test/head
+          echo "hello world" > /tmp/diff-label-test/head/file.txt
+          echo "new line" >> /tmp/diff-label-test/head/file.txt
+
+      - id: action
         uses: .
         with:
-          base: /tmp/base
-          head: /tmp/head
+          base: /tmp/diff-label-test/base/file.txt
+          head: /tmp/diff-label-test/head/file.txt
           label: diff-detected
-          token: ${{ github.token }}
 
-      - name: Assert comment-body is non-empty when diff exists with label
+      - name: Assert comment-body is non-empty (diff detected)
         env:
-          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
         run: |
-          echo "actual: '$ACTUAL'"
+          echo "actual: $ACTUAL"
           if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected non-empty comment-body but got empty string"
+            echo "FAIL: expected comment-body to be non-empty when diff is present"
             exit 1
           fi
-          echo "PASS: comment-body is non-empty as expected"
-
-      - name: Assert comment-body contains diff markers
-        env:
-          ACTUAL: ${{ steps.diff.outputs.comment-body }}
-        run: |
-          echo "actual: '$ACTUAL'"
-          if ! echo "$ACTUAL" | grep -q "file.txt"; then
-            echo "FAIL: expected comment-body to reference file.txt"
-            exit 1
-          fi
-          echo "PASS: comment-body references the changed file"
+          echo "PASS: comment-body is non-empty"

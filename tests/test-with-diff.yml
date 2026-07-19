@@ -1,4 +1,4 @@
-name: Test with diff (directories differ)
+name: Test with diff scenario
 on:
   workflow_dispatch:
 jobs:
@@ -9,35 +9,37 @@ jobs:
 
       - name: Create base and head directories with different content
         run: |
-          mkdir -p /tmp/base /tmp/head
-          echo "old content" > /tmp/base/file.txt
-          echo "new content" > /tmp/head/file.txt
+          mkdir -p /tmp/base-diff /tmp/head-diff
+          echo "old content" > /tmp/base-diff/file.txt
+          echo "new content" > /tmp/head-diff/file.txt
 
-      - id: diff
+      - id: action
         uses: .
         with:
-          base: /tmp/base
-          head: /tmp/head
-          token: ${{ github.token }}
+          base: /tmp/base-diff
+          head: /tmp/head-diff
 
       - name: Assert comment-body is non-empty when diff exists
         env:
-          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
         run: |
           echo "actual: '$ACTUAL'"
-          if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected non-empty comment-body but got empty string"
+          NORM="$(echo "$ACTUAL" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$ACTUAL" | grep -qiE 'no .*(change|diff)'; then
+            echo "FAIL: expected a diff but got empty/no-diff: $ACTUAL"
             exit 1
           fi
-          echo "PASS: comment-body is non-empty as expected"
+          echo "PASS: diff present in comment-body"
 
       - name: Assert comment-body contains diff markers
         env:
-          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
         run: |
           echo "actual: '$ACTUAL'"
-          if ! echo "$ACTUAL" | grep -q "file.txt"; then
+          if echo "$ACTUAL" | grep -q "file.txt"; then
+            echo "PASS: comment-body references the changed file"
+          else
             echo "FAIL: expected comment-body to reference file.txt"
             exit 1
           fi
-          echo "PASS: comment-body references the changed file"

@@ -1,4 +1,4 @@
-name: Test added file (file in head but not in base)
+name: Test added file scenario
 on:
   workflow_dispatch:
 jobs:
@@ -9,36 +9,38 @@ jobs:
 
       - name: Create base and head directories where head has an extra file
         run: |
-          mkdir -p /tmp/base-add /tmp/head-add
-          echo "common file" > /tmp/base-add/common.txt
-          echo "common file" > /tmp/head-add/common.txt
-          echo "brand new file" > /tmp/head-add/new.txt
+          mkdir -p /tmp/base-added /tmp/head-added
+          echo "existing file" > /tmp/base-added/existing.txt
+          echo "existing file" > /tmp/head-added/existing.txt
+          echo "brand new file" > /tmp/head-added/newfile.txt
 
-      - id: diff
+      - id: action
         uses: .
         with:
-          base: /tmp/base-add
-          head: /tmp/head-add
-          token: ${{ github.token }}
+          base: /tmp/base-added
+          head: /tmp/head-added
 
       - name: Assert comment-body is non-empty when file is added
         env:
-          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
         run: |
           echo "actual: '$ACTUAL'"
-          if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected non-empty comment-body for added file"
+          NORM="$(echo "$ACTUAL" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$ACTUAL" | grep -qiE 'no .*(change|diff)'; then
+            echo "FAIL: expected a diff for added file but got empty/no-diff: $ACTUAL"
             exit 1
           fi
-          echo "PASS: comment-body is non-empty as expected"
+          echo "PASS: diff present for added file"
 
-      - name: Assert comment-body references the new file
+      - name: Assert comment-body mentions the new file
         env:
-          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
         run: |
           echo "actual: '$ACTUAL'"
-          if ! echo "$ACTUAL" | grep -q "new.txt"; then
-            echo "FAIL: expected comment-body to reference new.txt"
+          if echo "$ACTUAL" | grep -q "newfile.txt"; then
+            echo "PASS: comment-body references the added file"
+          else
+            echo "FAIL: expected comment-body to reference newfile.txt"
             exit 1
           fi
-          echo "PASS: comment-body references the added file"

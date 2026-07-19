@@ -1,4 +1,4 @@
-name: Test deleted file (file in base but not in head)
+name: Test deleted file scenario
 on:
   workflow_dispatch:
 jobs:
@@ -9,36 +9,38 @@ jobs:
 
       - name: Create base and head directories where base has an extra file
         run: |
-          mkdir -p /tmp/base-del /tmp/head-del
-          echo "common file" > /tmp/base-del/common.txt
-          echo "common file" > /tmp/head-del/common.txt
-          echo "file to be deleted" > /tmp/base-del/deleted.txt
+          mkdir -p /tmp/base-deleted /tmp/head-deleted
+          echo "existing file" > /tmp/base-deleted/existing.txt
+          echo "existing file" > /tmp/head-deleted/existing.txt
+          echo "file to be deleted" > /tmp/base-deleted/removed.txt
 
-      - id: diff
+      - id: action
         uses: .
         with:
-          base: /tmp/base-del
-          head: /tmp/head-del
-          token: ${{ github.token }}
+          base: /tmp/base-deleted
+          head: /tmp/head-deleted
 
       - name: Assert comment-body is non-empty when file is deleted
         env:
-          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
         run: |
           echo "actual: '$ACTUAL'"
-          if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected non-empty comment-body for deleted file"
+          NORM="$(echo "$ACTUAL" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$ACTUAL" | grep -qiE 'no .*(change|diff)'; then
+            echo "FAIL: expected a diff for deleted file but got empty/no-diff: $ACTUAL"
             exit 1
           fi
-          echo "PASS: comment-body is non-empty as expected"
+          echo "PASS: diff present for deleted file"
 
-      - name: Assert comment-body references the deleted file
+      - name: Assert comment-body mentions the removed file
         env:
-          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
         run: |
           echo "actual: '$ACTUAL'"
-          if ! echo "$ACTUAL" | grep -q "deleted.txt"; then
-            echo "FAIL: expected comment-body to reference deleted.txt"
+          if echo "$ACTUAL" | grep -q "removed.txt"; then
+            echo "PASS: comment-body references the deleted file"
+          else
+            echo "FAIL: expected comment-body to reference removed.txt"
             exit 1
           fi
-          echo "PASS: comment-body references the deleted file"
