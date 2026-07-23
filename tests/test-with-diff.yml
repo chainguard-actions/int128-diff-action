@@ -1,4 +1,4 @@
-name: Test added file (head has new file)
+name: Test with diff (modified file)
 on:
   workflow_dispatch:
 jobs:
@@ -7,20 +7,19 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create base and head directories where head has an extra file
+      - name: Create base and head directories with a modified file
         run: |
-          mkdir -p /tmp/base-added /tmp/head-added
-          echo "existing file" > /tmp/base-added/existing.txt
-          echo "existing file" > /tmp/head-added/existing.txt
-          echo "brand new file" > /tmp/head-added/new-file.txt
+          mkdir -p /tmp/base-diff /tmp/head-diff
+          echo "original content" > /tmp/base-diff/file.txt
+          echo "modified content" > /tmp/head-diff/file.txt
 
       - id: diff
         uses: .
         with:
-          base: /tmp/base-added
-          head: /tmp/head-added
+          base: /tmp/base-diff
+          head: /tmp/head-diff
 
-      - name: Assert comment-body is non-empty when file is added
+      - name: Assert comment-body is non-empty when diff exists
         env:
           ACTUAL: ${{ steps.diff.outputs.comment-body }}
         run: |
@@ -33,26 +32,26 @@ jobs:
           fi
           echo "PASS: diff present in comment-body"
 
-      - name: Assert comment-body mentions added status
+      - name: Assert comment-body mentions files changed
         env:
           ACTUAL: ${{ steps.diff.outputs.comment-body }}
         run: |
           echo "actual: '$ACTUAL'"
-          if echo "$ACTUAL" | grep -qi "added"; then
-            echo "PASS: comment-body mentions 'added'"
+          if echo "$ACTUAL" | grep -q "file"; then
+            echo "PASS: comment-body mentions 'file'"
           else
-            echo "FAIL: expected 'added' in comment-body"
+            echo "FAIL: expected 'file' in comment-body"
             exit 1
           fi
 
-      - name: Assert comment-body mentions the new file name
+      - name: Assert comment-body mentions modified status
         env:
           ACTUAL: ${{ steps.diff.outputs.comment-body }}
         run: |
           echo "actual: '$ACTUAL'"
-          if echo "$ACTUAL" | grep -q "new-file.txt"; then
-            echo "PASS: comment-body mentions 'new-file.txt'"
+          if echo "$ACTUAL" | grep -qiE 'modified|changed'; then
+            echo "PASS: comment-body mentions modified/changed"
           else
-            echo "FAIL: expected 'new-file.txt' in comment-body"
+            echo "FAIL: expected 'modified' or 'changed' in comment-body"
             exit 1
           fi

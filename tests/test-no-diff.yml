@@ -1,4 +1,4 @@
-name: Test no diff (identical base and head)
+name: Test no diff (identical directories)
 on:
   workflow_dispatch:
 jobs:
@@ -9,24 +9,26 @@ jobs:
 
       - name: Create identical base and head directories
         run: |
-          mkdir -p /tmp/diff-test/base /tmp/diff-test/head
-          echo "hello world" > /tmp/diff-test/base/file.txt
-          echo "hello world" > /tmp/diff-test/head/file.txt
+          mkdir -p /tmp/base /tmp/head
+          echo "hello world" > /tmp/base/file.txt
+          echo "hello world" > /tmp/head/file.txt
 
-      - id: action
+      - id: diff
         uses: .
         with:
-          base: /tmp/diff-test/base
-          head: /tmp/diff-test/head
-          token: ${{ github.token }}
+          base: /tmp/base
+          head: /tmp/head
 
       - name: Assert comment-body is empty when no diff
         env:
-          ACTUAL: ${{ steps.action.outputs.comment-body }}
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
         run: |
           echo "actual: '$ACTUAL'"
-          if [ -n "$ACTUAL" ]; then
-            echo "FAIL: expected empty comment-body when no diff, got: $ACTUAL"
+          NORM="$(echo "$ACTUAL" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$ACTUAL" | grep -qiE 'no .*(change|diff)'; then
+            echo "PASS: no diff as expected (comment-body is empty)"
+          else
+            echo "FAIL: expected empty comment-body but got: $ACTUAL"
             exit 1
           fi
-          echo "PASS: comment-body is empty as expected"

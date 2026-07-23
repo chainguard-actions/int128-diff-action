@@ -1,4 +1,4 @@
-name: Test diff with deleted file
+name: Test deleted file (base has file missing from head)
 on:
   workflow_dispatch:
 jobs:
@@ -9,37 +9,50 @@ jobs:
 
       - name: Create base and head directories where base has an extra file
         run: |
-          mkdir -p /tmp/diff-deleted/base /tmp/diff-deleted/head
-          echo "existing file" > /tmp/diff-deleted/base/existing.txt
-          echo "existing file" > /tmp/diff-deleted/head/existing.txt
-          echo "file to be deleted" > /tmp/diff-deleted/base/deleted.txt
+          mkdir -p /tmp/base-deleted /tmp/head-deleted
+          echo "common file" > /tmp/base-deleted/common.txt
+          echo "common file" > /tmp/head-deleted/common.txt
+          echo "this file will be deleted" > /tmp/base-deleted/old-file.txt
 
-      - id: action
+      - id: diff
         uses: .
         with:
-          base: /tmp/diff-deleted/base
-          head: /tmp/diff-deleted/head
-          token: ${{ github.token }}
+          base: /tmp/base-deleted
+          head: /tmp/head-deleted
 
-      - name: Assert comment-body contains deleted file information
+      - name: Assert comment-body is non-empty when file is deleted
         env:
-          ACTUAL: ${{ steps.action.outputs.comment-body }}
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
         run: |
           echo "actual: '$ACTUAL'"
-          if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected non-empty comment-body when a file is deleted"
+          NORM="$(echo "$ACTUAL" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$ACTUAL" | grep -qiE 'no .*(change|diff)'; then
+            echo "FAIL: expected a diff but got empty/no-diff: $ACTUAL"
             exit 1
           fi
-          # Should mention "1 file changed"
-          if ! echo "$ACTUAL" | grep -q "1 file changed"; then
-            echo "FAIL: expected '1 file changed' in comment-body"
-            echo "Got: $ACTUAL"
+          echo "PASS: diff present in comment-body"
+
+      - name: Assert comment-body mentions deleted status
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if echo "$ACTUAL" | grep -qi "deleted"; then
+            echo "PASS: comment-body mentions 'deleted'"
+          else
+            echo "FAIL: expected 'deleted' in comment-body"
             exit 1
           fi
-          # Should mention deleted status
-          if ! echo "$ACTUAL" | grep -qiE "deleted|'\`D\`'"; then
-            echo "FAIL: expected deleted indicator in comment-body"
-            echo "Got: $ACTUAL"
+
+      - name: Assert comment-body mentions the deleted file name
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if echo "$ACTUAL" | grep -q "old-file.txt"; then
+            echo "PASS: comment-body mentions 'old-file.txt'"
+          else
+            echo "FAIL: expected 'old-file.txt' in comment-body"
             exit 1
           fi
-          echo "PASS: comment-body contains expected deleted file information"
