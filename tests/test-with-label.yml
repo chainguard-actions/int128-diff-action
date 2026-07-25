@@ -1,0 +1,34 @@
+name: Test diff with label input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head files for comparison
+        run: |
+          mkdir -p /tmp/diff-test/base /tmp/diff-test/head
+          echo "line1" > /tmp/diff-test/base/file.txt
+          echo "line1" > /tmp/diff-test/head/file.txt
+          echo "line2" >> /tmp/diff-test/head/file.txt
+
+      - id: action
+        uses: .
+        with:
+          base: /tmp/diff-test/base/file.txt
+          head: /tmp/diff-test/head/file.txt
+          label: diff-detected
+          token: ${{ github.token }}
+
+      - name: Assert comment-body output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected comment-body output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: comment-body is set"
