@@ -1,0 +1,58 @@
+name: Test added file (head has new file)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base (empty) and head (with new file)
+        run: |
+          mkdir -p /tmp/diff-added/base /tmp/diff-added/head
+          # base is empty, head has a new file
+          echo "brand new content" > /tmp/diff-added/head/newfile.txt
+
+      - id: action
+        uses: .
+        with:
+          base: /tmp/diff-added/base
+          head: /tmp/diff-added/head
+
+      - name: Assert comment-body is non-empty (added file detected)
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          NORM="$(echo "$ACTUAL" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$ACTUAL" | grep -qiE 'no .*(change|diff)'; then
+            echo "FAIL: expected a diff in comment-body but got empty/no-diff: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: comment-body contains diff content"
+
+      - name: Assert comment-body contains added file marker
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          # The action marks added files with backtick-A-backtick
+          if echo "$ACTUAL" | grep -qE '(`A`|added)'; then
+            echo "PASS: comment-body contains added file marker"
+          else
+            echo "FAIL: comment-body missing added file marker"
+            exit 1
+          fi
+
+      - name: Assert comment-body references the new file name
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if echo "$ACTUAL" | grep -q "newfile.txt"; then
+            echo "PASS: comment-body references newfile.txt"
+          else
+            echo "FAIL: comment-body does not reference newfile.txt"
+            exit 1
+          fi

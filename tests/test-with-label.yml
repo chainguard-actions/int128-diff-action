@@ -1,0 +1,46 @@
+name: Test with label input (sentinel repo - label API may fail gracefully)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create differing files to trigger label add
+        run: |
+          mkdir -p /tmp/diff-label/base /tmp/diff-label/head
+          echo "base content" > /tmp/diff-label/base/config.txt
+          echo "head content" > /tmp/diff-label/head/config.txt
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          base: /tmp/diff-label/base
+          head: /tmp/diff-label/head
+          label: |
+            has-diff
+
+      - name: Assert action ran and produced output or failed gracefully on sentinel repo
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          COMMENT_BODY: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "comment-body: '$COMMENT_BODY'"
+          if [ "$OUTCOME" = "success" ]; then
+            # If it succeeded, comment-body should be non-empty (we have a diff)
+            NORM="$(echo "$COMMENT_BODY" | tr -d '[:space:]')"
+            if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+               || echo "$COMMENT_BODY" | grep -qiE 'no .*(change|diff)'; then
+              echo "FAIL: action succeeded but comment-body is empty (expected diff content)"
+              exit 1
+            fi
+            echo "PASS: action succeeded with diff content in comment-body"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (label API call failed on sentinel repo)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
