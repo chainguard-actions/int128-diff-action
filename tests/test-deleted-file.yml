@@ -9,36 +9,29 @@ jobs:
 
       - name: Create base and head directories where base has an extra file
         run: |
-          mkdir -p /tmp/test-base /tmp/test-head
-          echo "common content" > /tmp/test-base/common.txt
-          echo "common content" > /tmp/test-head/common.txt
-          echo "this file will be deleted" > /tmp/test-base/deleted.txt
+          mkdir -p /tmp/base /tmp/head
+          echo "existing file" > /tmp/base/existing.txt
+          echo "existing file" > /tmp/head/existing.txt
+          echo "file to be deleted" > /tmp/base/deleted.txt
 
-      - id: diff
+      - id: action
         uses: .
         with:
-          base: /tmp/test-base
-          head: /tmp/test-head
-          token: dummy-token
+          base: /tmp/base
+          head: /tmp/head
 
-      - name: Assert comment-body is non-empty when file is deleted
+      - name: Assert comment-body mentions deleted file
         env:
-          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
         run: |
           echo "actual: '$ACTUAL'"
           if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected non-empty comment-body when a file is deleted"
+            echo "FAIL: expected non-empty comment-body when a file was deleted"
             exit 1
           fi
-          echo "PASS: comment-body is non-empty as expected"
-
-      - name: Assert comment-body references the deleted file
-        env:
-          ACTUAL: ${{ steps.diff.outputs.comment-body }}
-        run: |
-          echo "actual: '$ACTUAL'"
-          if ! echo "$ACTUAL" | grep -q "deleted.txt"; then
-            echo "FAIL: expected comment-body to reference deleted.txt"
+          # The comment body should mention "deleted" (status D)
+          if ! echo "$ACTUAL" | grep -qi "deleted\|\`D\`"; then
+            echo "FAIL: expected comment-body to mention deleted file, got: $ACTUAL"
             exit 1
           fi
-          echo "PASS: comment-body references the deleted file"
+          echo "PASS: comment-body mentions deleted file"

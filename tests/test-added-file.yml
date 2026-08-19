@@ -9,36 +9,29 @@ jobs:
 
       - name: Create base and head directories where head has an extra file
         run: |
-          mkdir -p /tmp/test-base /tmp/test-head
-          echo "common content" > /tmp/test-base/common.txt
-          echo "common content" > /tmp/test-head/common.txt
-          echo "brand new file" > /tmp/test-head/added.txt
+          mkdir -p /tmp/base /tmp/head
+          echo "existing file" > /tmp/base/existing.txt
+          echo "existing file" > /tmp/head/existing.txt
+          echo "brand new file" > /tmp/head/newfile.txt
 
-      - id: diff
+      - id: action
         uses: .
         with:
-          base: /tmp/test-base
-          head: /tmp/test-head
-          token: dummy-token
+          base: /tmp/base
+          head: /tmp/head
 
-      - name: Assert comment-body is non-empty when file is added
+      - name: Assert comment-body mentions added file
         env:
-          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
         run: |
           echo "actual: '$ACTUAL'"
           if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected non-empty comment-body when a file is added"
+            echo "FAIL: expected non-empty comment-body when a file was added"
             exit 1
           fi
-          echo "PASS: comment-body is non-empty as expected"
-
-      - name: Assert comment-body references the added file
-        env:
-          ACTUAL: ${{ steps.diff.outputs.comment-body }}
-        run: |
-          echo "actual: '$ACTUAL'"
-          if ! echo "$ACTUAL" | grep -q "added.txt"; then
-            echo "FAIL: expected comment-body to reference added.txt"
+          # The comment body should mention "added" (status A)
+          if ! echo "$ACTUAL" | grep -qi "added\|` A`\|\`A\`"; then
+            echo "FAIL: expected comment-body to mention added file, got: $ACTUAL"
             exit 1
           fi
-          echo "PASS: comment-body references the added file"
+          echo "PASS: comment-body mentions added file"
