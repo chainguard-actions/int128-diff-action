@@ -1,4 +1,4 @@
-name: Test diff with label
+name: Test diff action with label input
 on:
   workflow_dispatch:
 jobs:
@@ -9,17 +9,17 @@ jobs:
 
       - name: Create base and head files for diff
         run: |
-          mkdir -p /tmp/diff-label-test/base
-          mkdir -p /tmp/diff-label-test/head
-          echo "original content" > /tmp/diff-label-test/base/config.txt
-          echo "modified content" > /tmp/diff-label-test/head/config.txt
+          mkdir -p /tmp/diff-test
+          echo "line1" > /tmp/diff-test/base.txt
+          echo "line1" > /tmp/diff-test/head.txt
+          echo "line2" >> /tmp/diff-test/head.txt
 
       - id: action
         uses: .
         with:
-          base: /tmp/diff-label-test/base/config.txt
-          head: /tmp/diff-label-test/head/config.txt
-          label: needs-review
+          base: /tmp/diff-test/base.txt
+          head: /tmp/diff-test/head.txt
+          label: diff-detected
           token: ${{ github.token }}
 
       - name: Assert comment-body output is set
@@ -28,7 +28,7 @@ jobs:
         run: |
           echo "actual: $ACTUAL"
           if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected comment-body output to be non-empty"
+            echo "FAIL: expected comment-body to be non-empty when diff exists"
             exit 1
           fi
-          echo "PASS"
+          echo "PASS: comment-body is set"

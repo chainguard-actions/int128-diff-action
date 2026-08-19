@@ -1,0 +1,48 @@
+name: Test diff with modified file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories with a modified file
+        run: |
+          mkdir -p /tmp/base-mod /tmp/head-mod
+          echo "original content" > /tmp/base-mod/config.txt
+          echo "updated content" > /tmp/head-mod/config.txt
+
+      - id: diff
+        uses: .
+        with:
+          base: /tmp/base-mod
+          head: /tmp/head-mod
+
+      - name: Assert comment-body is non-empty and mentions changed file
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected non-empty comment-body but got empty string"
+            exit 1
+          fi
+          # Should mention "file changed" or "files changed"
+          if ! echo "$ACTUAL" | grep -q "file.*changed"; then
+            echo "FAIL: expected comment-body to mention 'file changed' but got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: comment-body is non-empty and mentions changed file"
+
+      - name: Assert comment-body mentions modified status
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          # Modified files should be marked with M
+          if ! echo "$ACTUAL" | grep -qE '\`M\`|modified'; then
+            echo "FAIL: expected comment-body to mention modified status"
+            exit 1
+          fi
+          echo "PASS: comment-body mentions modified status"

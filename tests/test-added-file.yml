@@ -1,0 +1,55 @@
+name: Test diff with added file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories where head has an extra file
+        run: |
+          mkdir -p /tmp/base-add /tmp/head-add
+          echo "common file" > /tmp/base-add/common.txt
+          echo "common file" > /tmp/head-add/common.txt
+          echo "new file content" > /tmp/head-add/new-file.txt
+
+      - id: diff
+        uses: .
+        with:
+          base: /tmp/base-add
+          head: /tmp/head-add
+
+      - name: Assert comment-body is non-empty
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected non-empty comment-body but got empty string"
+            exit 1
+          fi
+          echo "PASS: comment-body is non-empty"
+
+      - name: Assert comment-body mentions added status
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          # Added files should be marked with A
+          if ! echo "$ACTUAL" | grep -qE '\`A\`|added'; then
+            echo "FAIL: expected comment-body to mention added status but got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: comment-body mentions added status"
+
+      - name: Assert comment-body mentions the new file
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if ! echo "$ACTUAL" | grep -q "new-file.txt"; then
+            echo "FAIL: expected comment-body to mention 'new-file.txt' but got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: comment-body mentions new-file.txt"

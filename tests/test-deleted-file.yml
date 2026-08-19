@@ -1,0 +1,56 @@
+name: Test diff with deleted file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories where head is missing a file
+        run: |
+          mkdir -p /tmp/base-del /tmp/head-del
+          echo "common file" > /tmp/base-del/common.txt
+          echo "common file" > /tmp/head-del/common.txt
+          echo "file to be deleted" > /tmp/base-del/removed.txt
+          # head-del does NOT have removed.txt
+
+      - id: diff
+        uses: .
+        with:
+          base: /tmp/base-del
+          head: /tmp/head-del
+
+      - name: Assert comment-body is non-empty
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected non-empty comment-body but got empty string"
+            exit 1
+          fi
+          echo "PASS: comment-body is non-empty"
+
+      - name: Assert comment-body mentions deleted status
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          # Deleted files should be marked with D
+          if ! echo "$ACTUAL" | grep -qE '\`D\`|deleted'; then
+            echo "FAIL: expected comment-body to mention deleted status but got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: comment-body mentions deleted status"
+
+      - name: Assert comment-body mentions the removed file
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if ! echo "$ACTUAL" | grep -q "removed.txt"; then
+            echo "FAIL: expected comment-body to mention 'removed.txt' but got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: comment-body mentions removed.txt"
