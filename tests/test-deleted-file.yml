@@ -1,0 +1,59 @@
+name: Test deleted file diff
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up base and head directories where head is missing a file
+        run: |
+          mkdir -p /tmp/base-deleted /tmp/head-deleted
+          echo "common file" > /tmp/base-deleted/common.txt
+          echo "common file" > /tmp/head-deleted/common.txt
+          echo "this file will be deleted" > /tmp/base-deleted/removed.txt
+          # removed.txt is NOT created in head-deleted
+
+      - id: diff
+        uses: .
+        with:
+          base: /tmp/base-deleted
+          head: /tmp/head-deleted
+
+      - name: Assert comment-body is non-empty
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          NORM="$(echo "$COMMENT_BODY" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$COMMENT_BODY" | grep -qiE 'no .*(change|diff)'; then
+            echo "FAIL: expected a diff but got empty/no-diff: $COMMENT_BODY"
+            exit 1
+          fi
+          echo "PASS: diff present in comment-body"
+
+      - name: Assert comment-body mentions deleted file
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          if echo "$COMMENT_BODY" | grep -q "deleted"; then
+            echo "PASS: comment-body mentions 'deleted'"
+          else
+            echo "FAIL: expected 'deleted' in comment-body, got: $COMMENT_BODY"
+            exit 1
+          fi
+
+      - name: Assert comment-body mentions removed.txt
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          if echo "$COMMENT_BODY" | grep -q "removed.txt"; then
+            echo "PASS: comment-body mentions 'removed.txt'"
+          else
+            echo "FAIL: expected 'removed.txt' in comment-body, got: $COMMENT_BODY"
+            exit 1
+          fi

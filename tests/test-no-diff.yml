@@ -1,0 +1,34 @@
+name: Test no diff
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up identical base and head directories
+        run: |
+          mkdir -p /tmp/base /tmp/head
+          echo "hello world" > /tmp/base/file.txt
+          echo "hello world" > /tmp/head/file.txt
+
+      - id: diff
+        uses: .
+        with:
+          base: /tmp/base
+          head: /tmp/head
+
+      - name: Assert comment-body is empty when no diff
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          NORM="$(echo "$COMMENT_BODY" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$COMMENT_BODY" | grep -qiE 'no .*(change|diff)'; then
+            echo "PASS: no diff as expected (empty comment-body)"
+          else
+            echo "FAIL: expected empty comment-body but got: $COMMENT_BODY"
+            exit 1
+          fi

@@ -1,0 +1,58 @@
+name: Test added file diff
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up base and head directories where head has a new file
+        run: |
+          mkdir -p /tmp/base-added /tmp/head-added
+          echo "existing file" > /tmp/base-added/existing.txt
+          echo "existing file" > /tmp/head-added/existing.txt
+          echo "brand new file" > /tmp/head-added/newfile.txt
+
+      - id: diff
+        uses: .
+        with:
+          base: /tmp/base-added
+          head: /tmp/head-added
+
+      - name: Assert comment-body is non-empty
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          NORM="$(echo "$COMMENT_BODY" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$COMMENT_BODY" | grep -qiE 'no .*(change|diff)'; then
+            echo "FAIL: expected a diff but got empty/no-diff: $COMMENT_BODY"
+            exit 1
+          fi
+          echo "PASS: diff present in comment-body"
+
+      - name: Assert comment-body mentions added file
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          if echo "$COMMENT_BODY" | grep -q "added"; then
+            echo "PASS: comment-body mentions 'added'"
+          else
+            echo "FAIL: expected 'added' in comment-body, got: $COMMENT_BODY"
+            exit 1
+          fi
+
+      - name: Assert comment-body mentions newfile.txt
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          if echo "$COMMENT_BODY" | grep -q "newfile.txt"; then
+            echo "PASS: comment-body mentions 'newfile.txt'"
+          else
+            echo "FAIL: expected 'newfile.txt' in comment-body, got: $COMMENT_BODY"
+            exit 1
+          fi
