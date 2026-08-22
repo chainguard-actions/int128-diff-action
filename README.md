@@ -17,6 +17,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 | v2.33.0 | [`v2.33.0`](https://github.com/chainguard-actions/int128-diff-action/tree/v2.33.0) | [`125f535`](https://github.com/int128/diff-action/commit/125f5352a5a1456987741e06eca413e4b39de341) |
 | v2.34.0 | [`v2.34.0`](https://github.com/chainguard-actions/int128-diff-action/tree/v2.34.0) | [`782fb3d`](https://github.com/int128/diff-action/commit/782fb3df392fd583a5f9745afd19ade5f6529dd6) |
 | v2.35.0 | [`v2.35.0`](https://github.com/chainguard-actions/int128-diff-action/tree/v2.35.0) | [`cdde80d`](https://github.com/int128/diff-action/commit/cdde80de77f3fa5590e34a8cc2a7a5bf6a011c9f) |
+| v2.36.0 | [`v2.36.0`](https://github.com/chainguard-actions/int128-diff-action/tree/v2.36.0) | [`4ea4f95`](https://github.com/int128/diff-action/commit/4ea4f95e4684b2c719b963eefd7ff4b76d06ff8b) |
 
 ## Privacy
 
