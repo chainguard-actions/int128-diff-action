@@ -1,0 +1,40 @@
+name: Test deleted file diff
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories where base has an extra file
+        run: |
+          mkdir -p /tmp/base-deleted /tmp/head-deleted
+          echo "existing file" > /tmp/base-deleted/existing.txt
+          echo "existing file" > /tmp/head-deleted/existing.txt
+          echo "file to be deleted" > /tmp/base-deleted/removed.txt
+
+      - id: action
+        uses: .
+        with:
+          base: /tmp/base-deleted
+          head: /tmp/head-deleted
+
+      - name: Assert comment-body mentions deleted file
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: $ACTUAL"
+          NORM="$(echo "$ACTUAL" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$ACTUAL" | grep -qiE 'no .*(change|diff)'; then
+            echo "FAIL: expected a diff but got empty/no-diff: $ACTUAL"
+            exit 1
+          fi
+          # Verify the comment-body mentions "deleted" (D status)
+          if echo "$ACTUAL" | grep -qi "deleted\|\`D\`"; then
+            echo "PASS: comment-body mentions deleted file"
+          else
+            echo "FAIL: comment-body does not mention deleted file: $ACTUAL"
+            exit 1
+          fi

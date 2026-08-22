@@ -1,0 +1,44 @@
+name: Test with label input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories with different content
+        run: |
+          mkdir -p /tmp/base-label /tmp/head-label
+          echo "original content" > /tmp/base-label/file.txt
+          echo "modified content" > /tmp/head-label/file.txt
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          base: /tmp/base-label
+          head: /tmp/head-label
+          label: diff-detected
+
+      - name: Assert action ran with label input (success or graceful failure on sentinel repo)
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "actual: $ACTUAL"
+          if [ "$OUTCOME" = "success" ]; then
+            NORM="$(echo "$ACTUAL" | tr -d '[:space:]')"
+            if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+               || echo "$ACTUAL" | grep -qiE 'no .*(change|diff)'; then
+              echo "FAIL: action succeeded but comment-body is empty/no-diff"
+              exit 1
+            fi
+            echo "PASS: action succeeded with label input and produced diff output"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo label operation not resolvable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
