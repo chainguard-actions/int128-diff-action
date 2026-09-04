@@ -1,0 +1,44 @@
+name: Test single file diff
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create two different single files
+        run: |
+          echo "version: 1" > /tmp/base-file.yaml
+          echo "version: 2" > /tmp/head-file.yaml
+
+      - id: action
+        uses: .
+        with:
+          base: /tmp/base-file.yaml
+          head: /tmp/head-file.yaml
+
+      - name: Assert comment-body is non-empty (single file diff)
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          NORM="$(echo "$ACTUAL" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$ACTUAL" | grep -qiE 'no .*(change|diff)'; then
+            echo "FAIL: expected a diff for single file but got empty/no-diff: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: diff present for single file"
+
+      - name: Assert comment-body contains modified marker
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if echo "$ACTUAL" | grep -qiE 'modified|`M`|changed'; then
+            echo "PASS: comment-body mentions modified/changed"
+          else
+            echo "FAIL: expected modified marker in comment-body"
+            exit 1
+          fi
