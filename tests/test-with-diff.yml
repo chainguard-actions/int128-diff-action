@@ -1,0 +1,39 @@
+name: Test with diff (directories differ)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories with differences
+        run: |
+          mkdir -p /tmp/base-diff /tmp/head-diff
+          # File present in both but modified
+          echo "original content" > /tmp/base-diff/modified.txt
+          echo "updated content" > /tmp/head-diff/modified.txt
+          # File only in base (deleted in head)
+          echo "deleted file" > /tmp/base-diff/deleted.txt
+          # File only in head (added)
+          echo "new file" > /tmp/head-diff/added.txt
+
+      - id: diff
+        uses: .
+        with:
+          base: /tmp/base-diff
+          head: /tmp/head-diff
+
+      - name: Assert comment-body is non-empty when diff exists
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body length: ${#COMMENT_BODY}"
+          echo "comment-body (first 500 chars): ${COMMENT_BODY:0:500}"
+          NORM="$(echo "$COMMENT_BODY" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$COMMENT_BODY" | grep -qiE 'no .*(change|diff)'; then
+            echo "FAIL: expected non-empty diff in comment-body"
+            exit 1
+          fi
+          echo "PASS: comment-body contains diff content"

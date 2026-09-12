@@ -1,0 +1,38 @@
+name: Test single file diff
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create two different files to compare
+        run: |
+          echo "line 1" > /tmp/base-file.txt
+          echo "line 1" >> /tmp/base-file.txt
+          echo "line 2" >> /tmp/base-file.txt
+
+          echo "line 1" > /tmp/head-file.txt
+          echo "line 1 modified" >> /tmp/head-file.txt
+          echo "line 2" >> /tmp/head-file.txt
+          echo "line 3 added" >> /tmp/head-file.txt
+
+      - id: diff
+        uses: .
+        with:
+          base: /tmp/base-file.txt
+          head: /tmp/head-file.txt
+
+      - name: Assert comment-body contains diff for single file comparison
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body (first 500 chars): ${COMMENT_BODY:0:500}"
+          NORM="$(echo "$COMMENT_BODY" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$COMMENT_BODY" | grep -qiE 'no .*(change|diff)'; then
+            echo "FAIL: expected non-empty diff for single file comparison"
+            exit 1
+          fi
+          echo "PASS: comment-body contains diff for single file"
