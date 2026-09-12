@@ -1,0 +1,55 @@
+name: Test diff with added file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories where head has an extra file
+        run: |
+          mkdir -p /tmp/test-base /tmp/test-head
+          echo "shared content" > /tmp/test-base/shared.txt
+          echo "shared content" > /tmp/test-head/shared.txt
+          echo "new file content" > /tmp/test-head/newfile.txt
+
+      - id: diff
+        uses: .
+        with:
+          base: /tmp/test-base
+          head: /tmp/test-head
+
+      - name: Assert comment-body is non-empty when file is added
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          if [ -z "$COMMENT_BODY" ]; then
+            echo "FAIL: expected non-empty comment-body when a file is added"
+            exit 1
+          fi
+          echo "PASS: comment-body is non-empty"
+
+      - name: Assert comment-body mentions the added file
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          if ! echo "$COMMENT_BODY" | grep -q "newfile.txt"; then
+            echo "FAIL: expected comment-body to mention 'newfile.txt'"
+            exit 1
+          fi
+          echo "PASS: comment-body mentions the added file"
+
+      - name: Assert comment-body indicates added status
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          # The format.ts uses backtick-A for added files: `A`
+          if ! echo "$COMMENT_BODY" | grep -q '`A`\|added'; then
+            echo "FAIL: expected comment-body to indicate added status"
+            exit 1
+          fi
+          echo "PASS: comment-body indicates added status"

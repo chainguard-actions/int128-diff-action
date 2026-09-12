@@ -1,0 +1,55 @@
+name: Test diff with deleted file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories where base has an extra file
+        run: |
+          mkdir -p /tmp/test-base /tmp/test-head
+          echo "shared content" > /tmp/test-base/shared.txt
+          echo "shared content" > /tmp/test-head/shared.txt
+          echo "deleted file content" > /tmp/test-base/removed.txt
+
+      - id: diff
+        uses: .
+        with:
+          base: /tmp/test-base
+          head: /tmp/test-head
+
+      - name: Assert comment-body is non-empty when file is deleted
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          if [ -z "$COMMENT_BODY" ]; then
+            echo "FAIL: expected non-empty comment-body when a file is deleted"
+            exit 1
+          fi
+          echo "PASS: comment-body is non-empty"
+
+      - name: Assert comment-body mentions the deleted file
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          if ! echo "$COMMENT_BODY" | grep -q "removed.txt"; then
+            echo "FAIL: expected comment-body to mention 'removed.txt'"
+            exit 1
+          fi
+          echo "PASS: comment-body mentions the deleted file"
+
+      - name: Assert comment-body indicates deleted status
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          # The format.ts uses backtick-D for deleted files: `D`
+          if ! echo "$COMMENT_BODY" | grep -q '`D`\|deleted'; then
+            echo "FAIL: expected comment-body to indicate deleted status"
+            exit 1
+          fi
+          echo "PASS: comment-body indicates deleted status"

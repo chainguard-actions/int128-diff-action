@@ -1,0 +1,53 @@
+name: Test diff with modified file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories with a modified file
+        run: |
+          mkdir -p /tmp/test-base /tmp/test-head
+          echo "original content" > /tmp/test-base/app.txt
+          echo "modified content" > /tmp/test-head/app.txt
+
+      - id: diff
+        uses: .
+        with:
+          base: /tmp/test-base
+          head: /tmp/test-head
+
+      - name: Assert comment-body is non-empty when diff exists
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          if [ -z "$COMMENT_BODY" ]; then
+            echo "FAIL: expected non-empty comment-body when files differ"
+            exit 1
+          fi
+          echo "PASS: comment-body is non-empty"
+
+      - name: Assert comment-body mentions modified file
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          if ! echo "$COMMENT_BODY" | grep -q "app.txt"; then
+            echo "FAIL: expected comment-body to mention 'app.txt'"
+            exit 1
+          fi
+          echo "PASS: comment-body mentions the modified file"
+
+      - name: Assert comment-body mentions files changed
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "comment-body: '$COMMENT_BODY'"
+          if ! echo "$COMMENT_BODY" | grep -qi "file.*changed\|changed.*file"; then
+            echo "FAIL: expected comment-body to mention 'file(s) changed'"
+            exit 1
+          fi
+          echo "PASS: comment-body mentions files changed"

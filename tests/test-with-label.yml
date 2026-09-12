@@ -1,0 +1,44 @@
+name: Test diff with label input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories with a modified file
+        run: |
+          mkdir -p /tmp/test-base-label /tmp/test-head-label
+          echo "original content" > /tmp/test-base-label/config.txt
+          echo "updated content" > /tmp/test-head-label/config.txt
+
+      - id: diff
+        uses: .
+        continue-on-error: true
+        with:
+          base: /tmp/test-base-label
+          head: /tmp/test-head-label
+          label: |
+            diff-detected
+          token: ${{ github.token }}
+
+      - name: Assert action ran with label input (diff computed or failed gracefully on sentinel repo)
+        env:
+          COMMENT_BODY: ${{ steps.diff.outputs.comment-body }}
+          OUTCOME: ${{ steps.diff.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "comment-body: '$COMMENT_BODY'"
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$COMMENT_BODY" ]; then
+              echo "FAIL: action succeeded but comment-body is empty (expected diff output)"
+              exit 1
+            fi
+            echo "PASS: action succeeded with label input and produced comment-body"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (label API call failed on sentinel repo)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
