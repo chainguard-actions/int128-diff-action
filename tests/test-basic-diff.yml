@@ -1,0 +1,44 @@
+name: Test basic diff (files differ)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories with different content
+        run: |
+          mkdir -p /tmp/diff-test/base /tmp/diff-test/head
+          echo "version: 1.0.0" > /tmp/diff-test/base/config.yaml
+          echo "replicas: 2" >> /tmp/diff-test/base/config.yaml
+          echo "version: 1.1.0" > /tmp/diff-test/head/config.yaml
+          echo "replicas: 3" >> /tmp/diff-test/head/config.yaml
+
+      - id: action
+        uses: .
+        with:
+          base: /tmp/diff-test/base
+          head: /tmp/diff-test/head
+
+      - name: Assert comment-body is non-empty (diff detected)
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected a non-empty comment-body when files differ"
+            exit 1
+          fi
+          echo "PASS: comment-body is non-empty"
+
+      - name: Assert comment-body contains expected diff markers
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: $ACTUAL"
+          if ! echo "$ACTUAL" | grep -q "file"; then
+            echo "FAIL: expected 'file' in comment-body"
+            exit 1
+          fi
+          echo "PASS: comment-body contains expected content"

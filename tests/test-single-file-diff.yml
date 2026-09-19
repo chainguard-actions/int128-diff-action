@@ -1,0 +1,47 @@
+name: Test diff between single files
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create two single files with different content
+        run: |
+          mkdir -p /tmp/singlefile-test
+          echo "apiVersion: apps/v1" > /tmp/singlefile-test/base.yaml
+          echo "kind: Deployment" >> /tmp/singlefile-test/base.yaml
+          echo "replicas: 1" >> /tmp/singlefile-test/base.yaml
+          echo "apiVersion: apps/v1" > /tmp/singlefile-test/head.yaml
+          echo "kind: Deployment" >> /tmp/singlefile-test/head.yaml
+          echo "replicas: 5" >> /tmp/singlefile-test/head.yaml
+
+      - id: action
+        uses: .
+        with:
+          base: /tmp/singlefile-test/base.yaml
+          head: /tmp/singlefile-test/head.yaml
+
+      - name: Assert comment-body is non-empty (single file diff detected)
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected a non-empty comment-body when single files differ"
+            exit 1
+          fi
+          echo "PASS: comment-body is non-empty"
+
+      - name: Assert comment-body contains modified marker
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: $ACTUAL"
+          # The format.ts uses backtick M backtick for modified files
+          if ! echo "$ACTUAL" | grep -qE '`M`|modified|changed'; then
+            echo "FAIL: expected modified marker in comment-body"
+            exit 1
+          fi
+          echo "PASS: comment-body contains expected content"

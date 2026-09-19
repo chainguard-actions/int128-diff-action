@@ -1,0 +1,44 @@
+name: Test diff with added file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories where head has an extra file
+        run: |
+          mkdir -p /tmp/added-test/base /tmp/added-test/head
+          echo "existing: true" > /tmp/added-test/base/existing.yaml
+          cp /tmp/added-test/base/existing.yaml /tmp/added-test/head/existing.yaml
+          echo "new-feature: enabled" > /tmp/added-test/head/new-service.yaml
+
+      - id: action
+        uses: .
+        with:
+          base: /tmp/added-test/base
+          head: /tmp/added-test/head
+
+      - name: Assert comment-body is non-empty (added file detected)
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected a non-empty comment-body when a file is added"
+            exit 1
+          fi
+          echo "PASS: comment-body is non-empty"
+
+      - name: Assert comment-body mentions added status
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: $ACTUAL"
+          # The format.ts uses backtick A backtick for added files
+          if ! echo "$ACTUAL" | grep -qE '`A`|added'; then
+            echo "FAIL: expected 'A' (added) marker in comment-body"
+            exit 1
+          fi
+          echo "PASS: comment-body contains added file marker"

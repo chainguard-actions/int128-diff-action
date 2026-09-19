@@ -1,0 +1,35 @@
+name: Test no diff (files identical)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories with identical content
+        run: |
+          mkdir -p /tmp/nodiff-test/base /tmp/nodiff-test/head
+          echo "version: 1.0.0" > /tmp/nodiff-test/base/config.yaml
+          echo "replicas: 2" >> /tmp/nodiff-test/base/config.yaml
+          cp /tmp/nodiff-test/base/config.yaml /tmp/nodiff-test/head/config.yaml
+
+      - id: action
+        uses: .
+        with:
+          base: /tmp/nodiff-test/base
+          head: /tmp/nodiff-test/head
+
+      - name: Assert comment-body is empty (no diff)
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          NORM="$(echo "$ACTUAL" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$ACTUAL" | grep -qiE 'no .*(change|diff)'; then
+            echo "PASS: no diff as expected (empty comment-body)"
+          else
+            echo "FAIL: expected empty comment-body but got: $ACTUAL"
+            exit 1
+          fi
