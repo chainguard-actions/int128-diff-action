@@ -1,0 +1,34 @@
+name: Test added file (file in head but not in base)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories where head has an extra file
+        run: |
+          mkdir -p /tmp/added-base /tmp/added-head
+          echo "common file" > /tmp/added-base/common.txt
+          echo "common file" > /tmp/added-head/common.txt
+          echo "new file content" > /tmp/added-head/new-file.txt
+
+      - id: action
+        uses: .
+        with:
+          base: /tmp/added-base
+          head: /tmp/added-head
+
+      - name: Assert comment-body is non-empty when file is added
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          NORM="$(echo "$ACTUAL" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+             || echo "$ACTUAL" | grep -qiE 'no .*(change|diff)'; then
+            echo "FAIL: expected diff for added file but got empty/no-diff: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: comment-body contains diff for added file"

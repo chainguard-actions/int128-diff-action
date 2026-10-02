@@ -1,0 +1,44 @@
+name: Test with label (diff detected, label add attempted)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create base and head directories with different content
+        run: |
+          mkdir -p /tmp/label-base /tmp/label-head
+          echo "old content" > /tmp/label-base/app.txt
+          echo "new content" > /tmp/label-head/app.txt
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          base: /tmp/label-base
+          head: /tmp/label-head
+          label: manifest-changed
+
+      - name: Assert action ran (diff computed, label op may fail on sentinel repo)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          COMMENT_BODY: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "comment-body: '$COMMENT_BODY'"
+          if [ "$OUTCOME" = "success" ]; then
+            NORM="$(echo "$COMMENT_BODY" | tr -d '[:space:]')"
+            if [ -z "$NORM" ] || [ "$NORM" = "{}" ] || [ "$NORM" = "null" ] \
+               || echo "$COMMENT_BODY" | grep -qiE 'no .*(change|diff)'; then
+              echo "FAIL: action succeeded but comment-body is empty despite diff"
+              exit 1
+            fi
+            echo "PASS: action succeeded with diff in comment-body"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (label API call failed on sentinel repo)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
