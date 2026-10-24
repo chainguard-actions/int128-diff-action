@@ -1,0 +1,36 @@
+name: Test label input on non pull request event
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Prepare directories with a diff
+        run: |
+          rm -rf tmp-label
+          mkdir -p tmp-label/base tmp-label/head
+          printf 'version: 1\n' > tmp-label/base/app.yaml
+          printf 'version: 2\n' > tmp-label/head/app.yaml
+      - id: action
+        uses: .
+        with:
+          base: tmp-label/base
+          head: tmp-label/head
+          label: |
+            diff
+            needs-review
+      - name: Assert action succeeded and produced a comment
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "actual:"
+          echo "$ACTUAL"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success (labels ignored on non-PR events)"
+            exit 1
+          fi
+          echo "$ACTUAL" | grep -qF -- '- `M` app.yaml' || { echo "FAIL: missing modified entry"; exit 1; }
+          echo "PASS"

@@ -1,0 +1,36 @@
+name: Test modified file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Prepare directories with a modified file
+        run: |
+          rm -rf tmp-mod
+          mkdir -p tmp-mod/base tmp-mod/head
+          printf 'line1\nline2\nline3\n' > tmp-mod/base/config.txt
+          printf 'line1\nchanged\nline3\n' > tmp-mod/head/config.txt
+          printf 'same\n' > tmp-mod/base/same.txt
+          printf 'same\n' > tmp-mod/head/same.txt
+      - id: action
+        uses: .
+        with:
+          base: tmp-mod/base
+          head: tmp-mod/head
+      - name: Assert comment body describes the modification
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual:"
+          echo "$ACTUAL"
+          fail=0
+          echo "$ACTUAL" | grep -qF '1 file changed' || { echo "FAIL: missing '1 file changed'"; fail=1; }
+          echo "$ACTUAL" | grep -qF -- '- `M` config.txt' || { echo "FAIL: missing modified entry"; fail=1; }
+          echo "$ACTUAL" | grep -qF '1 modified `M`' || { echo "FAIL: missing breakdown"; fail=1; }
+          echo "$ACTUAL" | grep -qF '+changed' || { echo "FAIL: missing patch '+changed'"; fail=1; }
+          echo "$ACTUAL" | grep -qF -- '-line2' || { echo "FAIL: missing patch '-line2'"; fail=1; }
+          echo "$ACTUAL" | grep -qF 'same.txt' && { echo "FAIL: unchanged file listed"; fail=1; }
+          [ "$fail" = 0 ] || exit 1
+          echo "PASS"

@@ -1,0 +1,30 @@
+name: Test no diff
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Prepare identical directories
+        run: |
+          rm -rf tmp-nodiff
+          mkdir -p tmp-nodiff/base tmp-nodiff/head
+          printf 'hello\nworld\n' > tmp-nodiff/base/a.txt
+          printf 'hello\nworld\n' > tmp-nodiff/head/a.txt
+      - id: action
+        uses: .
+        with:
+          base: tmp-nodiff/base
+          head: tmp-nodiff/head
+      - name: Assert comment body is empty
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          NORM="$(echo "$ACTUAL" | tr -d '[:space:]')"
+          if [ -n "$NORM" ]; then
+            echo "FAIL: expected empty comment body"
+            exit 1
+          fi
+          echo "PASS"

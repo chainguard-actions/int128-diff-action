@@ -1,0 +1,31 @@
+name: Test single file comparison
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Prepare two single files
+        run: |
+          rm -rf tmp-single
+          mkdir -p tmp-single/base tmp-single/head
+          printf 'key: old\nother: x\n' > tmp-single/base/values.yaml
+          printf 'key: new\nother: x\n' > tmp-single/head/values.yaml
+      - id: action
+        uses: .
+        with:
+          base: tmp-single/base/values.yaml
+          head: tmp-single/head/values.yaml
+      - name: Assert comment body for single file
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual:"
+          echo "$ACTUAL"
+          fail=0
+          echo "$ACTUAL" | grep -qF '1 file changed' || { echo "FAIL: missing '1 file changed'"; fail=1; }
+          echo "$ACTUAL" | grep -qF -- '- `M` values.yaml' || { echo "FAIL: missing modified entry with filename"; fail=1; }
+          echo "$ACTUAL" | grep -qF '+key: new' || { echo "FAIL: missing patch line"; fail=1; }
+          [ "$fail" = 0 ] || exit 1
+          echo "PASS"

@@ -1,0 +1,33 @@
+name: Test added and deleted files
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Prepare directories with added and deleted files
+        run: |
+          rm -rf tmp-ad
+          mkdir -p tmp-ad/base tmp-ad/head
+          printf 'alpha\nbravo\ncharlie\ndelta\n' > tmp-ad/base/old.txt
+          printf '1\n2\n3\n4\n5\n6\n7\n8\n' > tmp-ad/head/new.txt
+      - id: action
+        uses: .
+        with:
+          base: tmp-ad/base
+          head: tmp-ad/head
+      - name: Assert comment body lists added and deleted files
+        env:
+          ACTUAL: ${{ steps.action.outputs.comment-body }}
+        run: |
+          echo "actual:"
+          echo "$ACTUAL"
+          fail=0
+          echo "$ACTUAL" | grep -qF '2 files changed' || { echo "FAIL: missing '2 files changed'"; fail=1; }
+          echo "$ACTUAL" | grep -qF -- '- `A` new.txt' || { echo "FAIL: missing added entry"; fail=1; }
+          echo "$ACTUAL" | grep -qF -- '- `D` old.txt' || { echo "FAIL: missing deleted entry"; fail=1; }
+          echo "$ACTUAL" | grep -qF '1 added `A`' || { echo "FAIL: missing added breakdown"; fail=1; }
+          echo "$ACTUAL" | grep -qF '1 deleted `D`' || { echo "FAIL: missing deleted breakdown"; fail=1; }
+          [ "$fail" = 0 ] || exit 1
+          echo "PASS"
