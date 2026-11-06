@@ -24,6 +24,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 | v2.40.0 | [`v2.40.0`](https://github.com/chainguard-actions/int128-diff-action/tree/v2.40.0) | [`c8988a2`](https://github.com/int128/diff-action/commit/c8988a2606d2c85af614a5675addf44b94c66989) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-diff-action/blob/v2.40.0/HARDENING.md) |
 | v2.41.0 | [`v2.41.0`](https://github.com/chainguard-actions/int128-diff-action/tree/v2.41.0) | [`274034d`](https://github.com/int128/diff-action/commit/274034d712aef611adcbd41e5a647f43e4edd5a5) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-diff-action/blob/v2.41.0/HARDENING.md) |
 | v2.42.0 | [`v2.42.0`](https://github.com/chainguard-actions/int128-diff-action/tree/v2.42.0) | [`5808e84`](https://github.com/int128/diff-action/commit/5808e847fcbe8a6c943e20d5b372204e99eb2de5) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-diff-action/blob/v2.42.0/HARDENING.md) |
+| v2.43.0 | [`v2.43.0`](https://github.com/chainguard-actions/int128-diff-action/tree/v2.43.0) | [`7d157ee`](https://github.com/int128/diff-action/commit/7d157ee0e4e33a930be4a424f41e805390f0ff19) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-diff-action/blob/v2.43.0/HARDENING.md) |
 
 ## Privacy
 
