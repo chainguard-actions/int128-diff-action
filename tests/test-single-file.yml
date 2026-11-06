@@ -1,0 +1,33 @@
+name: Test single file diff
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Prepare two single files
+        run: |
+          rm -rf difftest-single
+          mkdir -p difftest-single
+          printf 'replicas: 1\nimage: app:v1\n' > difftest-single/base.yaml
+          printf 'replicas: 3\nimage: app:v1\n' > difftest-single/head.yaml
+      - id: diff
+        uses: .
+        with:
+          base: difftest-single/base.yaml
+          head: difftest-single/head.yaml
+      - name: Assert comment body describes the change
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: $ACTUAL"
+          fail=0
+          for expected in '1 file changed' '-replicas: 1' '+replicas: 3' '```diff'; do
+            if ! printf '%s' "$ACTUAL" | grep -qF -- "$expected"; then
+              echo "FAIL: missing '$expected'"
+              fail=1
+            fi
+          done
+          [ "$fail" = 0 ] || exit 1
+          echo "PASS"

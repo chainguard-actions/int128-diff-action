@@ -1,0 +1,39 @@
+name: Test added and deleted files
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Prepare directories with added and deleted files
+        run: |
+          rm -rf difftest-ad
+          mkdir -p difftest-ad/base difftest-ad/head
+          printf 'same\n' > difftest-ad/base/keep.txt
+          printf 'same\n' > difftest-ad/head/keep.txt
+          printf 'only in base, line one\nsecond line of old content\n' > difftest-ad/base/old.txt
+          printf 'brand new file\nwith totally different text 12345\n' > difftest-ad/head/new.txt
+      - id: diff
+        uses: .
+        with:
+          base: difftest-ad/base
+          head: difftest-ad/head
+      - name: Assert comment body lists added and deleted files
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: $ACTUAL"
+          fail=0
+          for expected in '2 files changed' '- `A` new.txt' '- `D` old.txt' '1 added `A`' '1 deleted `D`'; do
+            if ! printf '%s' "$ACTUAL" | grep -qF -- "$expected"; then
+              echo "FAIL: missing '$expected'"
+              fail=1
+            fi
+          done
+          if printf '%s' "$ACTUAL" | grep -qF 'keep.txt'; then
+            echo "FAIL: unchanged keep.txt should not be listed"
+            fail=1
+          fi
+          [ "$fail" = 0 ] || exit 1
+          echo "PASS"

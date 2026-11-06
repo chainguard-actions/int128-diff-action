@@ -1,0 +1,33 @@
+name: Test modified file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Prepare directories with a modified file
+        run: |
+          rm -rf difftest-mod
+          mkdir -p difftest-mod/base difftest-mod/head
+          printf 'hello\nworld\n' > difftest-mod/base/a.txt
+          printf 'hello\nuniverse\n' > difftest-mod/head/a.txt
+      - id: diff
+        uses: .
+        with:
+          base: difftest-mod/base
+          head: difftest-mod/head
+      - name: Assert comment body describes the modification
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+        run: |
+          echo "actual: $ACTUAL"
+          fail=0
+          for expected in '1 file changed' '- `M` a.txt' '1 modified `M`' '-world' '+universe' '<summary>Diff</summary>' '### a.txt'; do
+            if ! printf '%s' "$ACTUAL" | grep -qF -- "$expected"; then
+              echo "FAIL: missing '$expected'"
+              fail=1
+            fi
+          done
+          [ "$fail" = 0 ] || exit 1
+          echo "PASS"

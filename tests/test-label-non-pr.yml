@@ -1,0 +1,38 @@
+name: Test label on non-PR event
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Prepare directories with a change
+        run: |
+          rm -rf difftest-label
+          mkdir -p difftest-label/base difftest-label/head
+          printf 'v1\n' > difftest-label/base/version.txt
+          printf 'v2\n' > difftest-label/head/version.txt
+      - id: diff
+        uses: .
+        with:
+          base: difftest-label/base
+          head: difftest-label/head
+          label: |
+            diff
+            has-changes
+      - name: Assert action succeeded and produced a comment
+        env:
+          ACTUAL: ${{ steps.diff.outputs.comment-body }}
+          OUTCOME: ${{ steps.diff.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "actual: $ACTUAL"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success"
+            exit 1
+          fi
+          if ! printf '%s' "$ACTUAL" | grep -qF -- '- `M` version.txt'; then
+            echo "FAIL: expected modified version.txt in comment"
+            exit 1
+          fi
+          echo "PASS"
